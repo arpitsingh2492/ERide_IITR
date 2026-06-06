@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ERide — Driver</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛺</text></svg>">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a1a">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Chart.js for Dashboard Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Background Shapes -->
+    <div class="bg-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="app-logo">
+            <span class="logo-icon">🛺</span>
+            <div>
+                <span class="logo-text">ERide</span>
+                <span class="logo-sub">Driver</span>
+            </div>
+        </div>
+        
+        <!-- Tabbed Navigation -->
+        <div class="dashboard-tabs">
+            <button class="dash-tab active" data-tab="rides" onclick="DriverApp.switchTab('rides')">🛺 Rides</button>
+            <button class="dash-tab" data-tab="scheduled" onclick="DriverApp.switchTab('scheduled')">📅 Scheduled</button>
+            <button class="dash-tab" data-tab="stats" onclick="DriverApp.switchTab('stats')">📊 Stats</button>
+        </div>
+
+        <div class="header-actions">
+            <button class="history-btn" onclick="toggleProfileModal()">👤 Profile</button>
+            <button class="history-btn" onclick="window.location.href='history.html'">History</button>
+            <div class="toggle-switch" id="online-toggle" onclick="DriverApp.toggleOnline()">
+                <span class="toggle-label" id="toggle-label">Offline</span>
+                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            </div>
+            <button class="btn-logout" onclick="DriverApp.logout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="page-content">
+
+        <!-- ==================== TAB 1: RIDES (Active/Waiting) ==================== -->
+        <div id="tab-content-rides" class="tab-content-section">
+            
+            <!-- ===== STATE 1: OFFLINE ===== -->
+            <div id="state-offline">
+                <div class="map-container greyed section-gap">
+                    <div id="offline-map" style="width:100%;height:100%;"></div>
+                </div>
+                <div class="offline-overlay">
+                    <div class="offline-icon">🔌</div>
+                    <h3 class="offline-title">You are offline</h3>
+                    <p class="offline-subtitle">Go online in the top-right to start receiving rides</p>
+                </div>
+            </div>
+
+            <!-- ===== STATE 2: ONLINE (Waiting) ===== -->
+            <div id="state-online" class="hidden">
+                <div class="status-badge online mb-2">
+                    <span>Online — Waiting for rides</span>
+                </div>
+
+                <!-- Map -->
+                <div class="map-container section-gap">
+                    <div id="online-map" style="width:100%;height:100%;"></div>
+                </div>
+
+                <!-- Incoming Ride Requests -->
+                <div class="ride-requests-stack" id="ride-requests"></div>
+
+                <div id="no-rides-msg" class="text-center mt-3" style="animation: fadeIn 0.5s ease-out;">
+                    <p style="font-size:0.9rem;color:var(--text-secondary);">🛺 Ready and waiting for riders</p>
+                </div>
+            </div>
+
+            <!-- ===== STATE 3: ACTIVE RIDE ===== -->
+            <div id="state-active" class="hidden">
+                <div class="status-badge online mb-2" id="active-status-badge">
+                    <span>Active Ride — En Route to Pickup</span>
+                </div>
+
+                <!-- Rider Info Card -->
+                <div class="driver-card mb-2" id="rider-info">
+                    <div class="driver-avatar" style="background: linear-gradient(135deg, #00b4d8, #0077b6);">🙋</div>
+                    <div class="driver-details">
+                        <div class="driver-name" id="rider-name">—</div>
+                        <a class="driver-phone" id="rider-phone" href="tel:" style="color:#00b4d8;">—</a>
+                    </div>
+                </div>
+
+                <!-- Route Info -->
+                <div class="glass-card mb-2" id="route-info">
+                    <div class="ride-info">
+                        <div class="info-row">
+                            <div class="info-icon pickup">📍</div>
+                            <div>
+                                <div class="info-label">Pickup</div>
+                                <div class="info-value" id="active-pickup">—</div>
+                            </div>
+                        </div>
+                        <div class="route-divider"><div class="route-line"></div></div>
+                        <div class="info-row">
+                            <div class="info-icon dest">🏁</div>
+                            <div>
+                                <div class="info-label">Destination</div>
+                                <div class="info-value" id="active-dest">—</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="map-container section-gap">
+                    <div id="active-map" style="width:100%;height:100%;"></div>
+                </div>
+
+                <!-- Start / Complete Ride Action Grid -->
+                <button class="btn btn-primary btn-lg btn-block" id="start-ride-btn" onclick="DriverApp.startRide()">
+                    ⚡ Start Ride (Passenger Boarded)
+                </button>
+                <button class="btn btn-primary btn-lg btn-block hidden" id="complete-btn" onclick="DriverApp.completeRide()">
+                    ✓ Complete Ride (Reached Destination)
+                </button>
+            </div>
+
+            <!-- ===== STATE 4: RIDE COMPLETED ===== -->
+            <div id="state-completed" class="hidden">
+                <div class="success-container">
+                    <div class="success-checkmark">✓</div>
+                    <h2 class="success-title" id="completed-title">Ride Completed!</h2>
+                    <p class="success-subtitle" id="completed-subtitle">Ride done! Thanks!</p>
+                    <div id="completed-rating-area" class="mt-2" style="font-size: 1.15rem; color: var(--accent); font-weight: 700;"></div>
+                    <div id="completed-feedback-area" class="mt-1" style="font-size: 0.9rem; color: var(--text-secondary); font-style: italic; max-width: 320px; margin: 0 auto;"></div>
+                    <button class="btn btn-primary btn-block mt-4" onclick="DriverApp.goBackToOnline()">Back to Online Mode</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== TAB 2: SCHEDULED BOOKINGS ==================== -->
+        <div id="tab-content-scheduled" class="tab-content-section hidden">
+            <div class="status-badge online mb-2">
+                <span>Available Scheduled Rides</span>
+            </div>
+            
+            <div id="scheduled-loading" class="text-center py-4">
+                <div class="spinner"></div>
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-top:10px;">Loading bookings...</p>
+            </div>
+            <div id="scheduled-empty" class="text-center py-4 hidden">
+                <p style="font-size:0.95rem;color:var(--text-secondary);">📅 No unclaimed scheduled rides found on campus</p>
+            </div>
+            
+            <!-- Deck List for Bookings -->
+            <div class="scheduled-deck" id="scheduled-deck-list"></div>
+        </div>
+
+        <!-- ==================== TAB 3: PERFORMANCE ANALYTICS ==================== -->
+        <div id="tab-content-stats" class="tab-content-section hidden">
+            <div class="status-badge online mb-2">
+                <span>Analytics Dashboard</span>
+            </div>
+
+            <!-- Summary Card Metrics -->
+            <div class="stats-summary-grid">
+                <div class="glass-card stat-card">
+                    <span class="stat-icon">✅</span>
+                    <div class="stat-number" id="stats-total-rides">0</div>
+                    <div class="stat-label">Total Rides</div>
+                </div>
+                <div class="glass-card stat-card">
+                    <span class="stat-icon">⭐</span>
+                    <div class="stat-number" id="stats-avg-rating">0.0</div>
+                    <div class="stat-label">Avg Rating</div>
+                </div>
+                <div class="glass-card stat-card">
+                    <span class="stat-icon">⚡</span>
+                    <div class="stat-number" id="stats-active-rides">0</div>
+                    <div class="stat-label">Active Bookings</div>
+                </div>
+            </div>
+
+            <!-- Hotspot Forecasting Grid -->
+            <div class="stats-row mt-3">
+                <div class="glass-card forecast-card flex-1">
+                    <h3>🔮 High Demand Hotspot Forecast</h3>
+                    <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:12px;">Predicted high-probability ride zones based on schedules.</p>
+                    <div id="forecast-list" class="forecast-list-deck">
+                        <!-- Populated Dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demand Chart Visualisation -->
+            <div class="stats-row mt-3">
+                <div class="glass-card chart-card flex-1">
+                    <h3>📈 Hourly Demand Patterns (Campus)</h3>
+                    <div class="chart-container" style="position: relative; height:220px; width:100%; margin-top:10px;">
+                        <canvas id="demandChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Written Reviews Wall -->
+            <div class="stats-row mt-3">
+                <div class="glass-card feedback-feed-card flex-1">
+                    <h3>💬 Recent Rider Feedbacks</h3>
+                    <div id="feedback-wall" class="feedback-wall-list">
+                        <!-- Populated Dynamically -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ===== IMMEDIATE UPI SETUP PROMPT MODAL ===== -->
+    <div id="upi-prompt-modal" class="modal hidden" style="z-index: 10100;">
+        <div class="modal-content glass-card text-center" style="max-width:400px;">
+            <div class="modal-header">
+                <h2>💳 Configure UPI Payments</h2>
+            </div>
+            <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">
+                You must set your UPI ID and upload your UPI QR code to accept cashless payments on campus.
+            </p>
+            <form id="upi-prompt-form" onsubmit="DriverApp.saveUpiPrompt(event)">
+                <div class="input-group">
+                    <label>Your UPI ID</label>
+                    <input type="text" class="input-field" id="prompt-upi" placeholder="Enter your UPI ID" required>
+                </div>
+                <div class="input-group mt-2">
+                    <label>Upload QR Scanner Image (Optional)</label>
+                    <input type="file" class="input-field" id="prompt-qr-file" accept="image/*" style="padding: 10px;">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block mt-3" id="upi-prompt-btn">Save & Go Online</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== PROFILE EDIT MODAL ===== -->
+    <div id="profile-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>👤 Edit Driver Profile</h2>
+                <button class="close-btn" onclick="toggleProfileModal()">✕</button>
+            </div>
+            <form id="profile-form" onsubmit="DriverApp.handleProfileUpdate(event)">
+                <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" class="input-field" id="profile-name" required autocomplete="name">
+                </div>
+                <div class="input-group">
+                    <label>Phone Number</label>
+                    <input type="tel" class="input-field" id="profile-phone" required autocomplete="tel">
+                </div>
+                <div class="input-group">
+                    <label>Vehicle Number</label>
+                    <input type="text" class="input-field" id="profile-vehicle" required placeholder="e.g. UK08 ER 1234">
+                </div>
+                <div class="input-group">
+                    <label>Driving License Number</label>
+                    <input type="text" class="input-field" id="profile-license" required placeholder="e.g. DL-1234567890123">
+                </div>
+                <div class="input-group">
+                    <label>UPI ID (to receive payments)</label>
+                    <input type="text" class="input-field" id="profile-upi" required placeholder="e.g. name@okaxis">
+                </div>
+                <div class="input-group">
+                    <label>Upload QR Code Image (Optional)</label>
+                    <input type="file" class="input-field" id="profile-qr-file" accept="image/*" style="padding: 10px;">
+                </div>
+                <div class="input-group">
+                    <label>New Password (Optional)</label>
+                    <input type="password" class="input-field" id="profile-password" placeholder="Leave blank to keep current" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="profile-save-btn">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/driver.js"></script>
+    <script>
+        // Profile Modal controllers (globals)
+        function toggleProfileModal() {
+            const modal = document.getElementById('profile-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('profile-name').value = App.user.name;
+                document.getElementById('profile-phone').value = App.user.phone;
+                document.getElementById('profile-vehicle').value = App.user.vehicle_number || '';
+                document.getElementById('profile-license').value = App.user.license_number || '';
+                document.getElementById('profile-upi').value = App.user.upi_id || '';
+                document.getElementById('profile-password').value = '';
+            }
+        }
+    </script>
+</body>
+</html>

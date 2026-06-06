@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ERide — Rider</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛺</text></svg>">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a1a">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Background Shapes -->
+    <div class="bg-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="app-logo">
+            <span class="logo-icon">🛺</span>
+            <div>
+                <span class="logo-text">ERide</span>
+                <span class="logo-sub">Rider</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="history-btn" onclick="toggleProfileModal()">👤 Profile</button>
+            <button class="history-btn" onclick="window.location.href='history.html'">History</button>
+            <span class="user-name" id="user-name"></span>
+            <button class="btn-logout" onclick="RiderApp.logout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="page-content">
+
+        <!-- ===== STATE 1: IDLE ===== -->
+        <div id="state-idle">
+            <!-- Location Display -->
+            <div class="location-display" id="current-location">
+                <span class="loc-dot"></span>
+                <span id="location-text">Detecting your location...</span>
+            </div>
+
+            <!-- Map -->
+            <div class="map-container section-gap" id="map-container">
+                <div id="rider-map" style="width:100%;height:100%;"></div>
+            </div>
+
+            <!-- Drivers Online Badge -->
+            <div class="drivers-badge">
+                <span class="badge-dot" id="drivers-dot"></span>
+                <span id="drivers-count">0 E-Rickshaws available nearby</span>
+            </div>
+
+            <!-- Destination Selector -->
+            <div class="dest-selector section-gap" id="dest-selector">
+                <div class="input-group">
+                    <label>Where to?</label>
+                    <div class="search-input">
+                        <span class="search-icon">📍</span>
+                        <input type="text"
+                            class="input-field"
+                            id="dest-search"
+                            placeholder="Search destination..."
+                            autocomplete="off"
+                            onfocus="showDestDropdown()"
+                            oninput="filterDest()">
+                    </div>
+                    <div class="dest-dropdown" id="dest-dropdown"></div>
+                </div>
+            </div>
+
+            <!-- Landmark Visual Preview Card -->
+            <div class="landmark-preview hidden glass-card section-gap" id="landmark-preview-card">
+                <div class="landmark-preview-banner" id="landmark-banner-emoji">🏛️</div>
+                <h3 id="landmark-title">Location Name</h3>
+                <p id="landmark-desc" style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px;"></p>
+            </div>
+
+            <!-- Selected Destination Display -->
+            <div class="hidden section-gap" id="selected-dest-display">
+                <div class="location-display" style="border-color: rgba(255,71,87,0.3);">
+                    <span class="loc-dot" style="background: var(--danger); box-shadow: 0 0 8px rgba(255,71,87,0.5);"></span>
+                    <span id="selected-dest-text" style="flex:1;"></span>
+                    <button style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:1.1rem;" onclick="clearDestination()">✕</button>
+                </div>
+            </div>
+
+            <!-- Request Button & Scheduling Grid -->
+            <div class="booking-options-grid mt-2">
+                <button class="btn btn-primary btn-lg btn-block" id="request-btn" onclick="RiderApp.requestRide()" disabled>
+                    ⚡ Request Now
+                </button>
+                <button class="btn btn-secondary btn-lg" id="schedule-btn" onclick="toggleScheduleModal()" disabled style="padding: 18px 24px;">
+                    📅 Schedule
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== STATE 2: WAITING ===== -->
+        <div id="state-waiting" class="hidden">
+            <!-- Map with overlay -->
+            <div class="map-container section-gap" style="position:relative;">
+                <div id="waiting-map" style="width:100%;height:100%;"></div>
+                <div class="map-overlay" id="waiting-overlay">
+                    <div class="pulse-container">
+                        <div class="pulse-ring"></div>
+                        <div class="pulse-ring"></div>
+                        <div class="pulse-ring"></div>
+                        <div class="pulse-center">🛺</div>
+                    </div>
+                    <p style="font-size:1.1rem;font-weight:600;margin-top:8px;">Finding your e-rickshaw...</p>
+                    <p style="font-size:0.85rem;color:var(--text-secondary);">Broadcasting path-optimized request</p>
+                </div>
+            </div>
+
+            <button class="btn btn-danger btn-lg btn-block" onclick="RiderApp.cancelRide()">
+                Cancel Request
+            </button>
+        </div>
+
+        <!-- ===== STATE 3: RIDE CONFIRMED & IN PROGRESS ===== -->
+        <div id="state-confirmed" class="hidden">
+            <!-- Driver Info Card -->
+            <div class="driver-card" id="driver-info">
+                <div class="driver-avatar">🛺</div>
+                <div class="driver-details">
+                    <div class="driver-name" id="driver-name">—</div>
+                    <div class="vehicle-badge hidden" id="vehicle-badge"></div>
+                    <a class="driver-phone" id="driver-phone" href="tel:">—</a>
+                </div>
+                <div class="status-badge online" id="ride-status-badge">En Route</div>
+            </div>
+
+            <!-- ETA Display -->
+            <div class="eta-display glass-card section-gap">
+                <div class="eta-number" id="eta-number">—</div>
+                <div class="eta-label" id="eta-label">Minutes Away</div>
+                <div class="eta-sublabel" id="eta-sublabel">Your driver is on the way</div>
+            </div>
+
+            <!-- Map -->
+            <div class="map-container section-gap">
+                <div id="confirmed-map" style="width:100%;height:100%;"></div>
+            </div>
+
+            <!-- Cancel ride available only before pickup -->
+            <button class="btn btn-danger btn-block" id="confirmed-cancel-btn" onclick="RiderApp.cancelRide()" style="margin-top: 8px;">
+                Cancel Ride
+            </button>
+        </div>
+
+        <!-- ===== STATE 4: RIDE COMPLETED ===== -->
+        <div id="state-completed" class="hidden">
+            <div class="success-container">
+                <div class="success-checkmark">✓</div>
+                <h2 class="success-title">Ride Completed!</h2>
+                
+                <div class="completion-summary">
+                    <div class="summary-stat">
+                        <div class="stat-value" id="summary-distance">—</div>
+                        <div class="stat-label">Distance</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="stat-value" id="summary-time">—</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                </div>
+
+                <div class="payment-actions-container mb-3">
+                    <button class="btn btn-outline btn-block" onclick="togglePaymentModal()">
+                        💳 Pay via UPI QR
+                    </button>
+                </div>
+
+                <p class="success-subtitle">Rate your experience</p>
+                <div class="star-rating" id="rating-stars">
+                    <span class="star" data-value="1" onclick="RiderApp.setRating(1)">★</span>
+                    <span class="star" data-value="2" onclick="RiderApp.setRating(2)">★</span>
+                    <span class="star" data-value="3" onclick="RiderApp.setRating(3)">★</span>
+                    <span class="star" data-value="4" onclick="RiderApp.setRating(4)">★</span>
+                    <span class="star" data-value="5" onclick="RiderApp.setRating(5)">★</span>
+                </div>
+                <div class="input-group" style="margin-top: 10px;">
+                    <textarea class="input-field" id="rating-feedback" rows="2" placeholder="Write optional feedback about your ride..." style="resize:none;"></textarea>
+                </div>
+
+                <button class="btn btn-primary btn-lg btn-block" onclick="RiderApp.submitFeedback()" style="margin-top: 16px;" id="feedback-submit-btn">
+                    Submit & Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== PROFILE EDIT MODAL ===== -->
+    <div id="profile-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>👤 Edit Profile</h2>
+                <button class="close-btn" onclick="toggleProfileModal()">✕</button>
+            </div>
+            <form id="profile-form" onsubmit="RiderApp.handleProfileUpdate(event)">
+                <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" class="input-field" id="profile-name" required autocomplete="name">
+                </div>
+                <div class="input-group">
+                    <label>Phone Number</label>
+                    <input type="tel" class="input-field" id="profile-phone" required autocomplete="tel">
+                </div>
+                <div class="input-group">
+                    <label>New Password (Optional)</label>
+                    <input type="password" class="input-field" id="profile-password" placeholder="Leave blank to keep current" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="profile-save-btn">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== RIDE SCHEDULING MODAL ===== -->
+    <div id="schedule-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>📅 Schedule a Ride</h2>
+                <button class="close-btn" onclick="toggleScheduleModal()">✕</button>
+            </div>
+            <div class="input-group">
+                <label>Select Date & Time</label>
+                <input type="datetime-local" class="input-field" id="schedule-datetime">
+            </div>
+            <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:16px;">Scheduled rides can be claimed by drivers. You can view them in your History page.</p>
+            <button class="btn btn-primary btn-block" onclick="RiderApp.scheduleRide()">Confirm Booking</button>
+        </div>
+    </div>
+
+    <!-- ===== UPI DIGITAL PAYMENTS SIMULATOR MODAL ===== -->
+    <div id="payment-modal" class="modal hidden">
+        <div class="modal-content glass-card text-center" style="max-width:380px;">
+            <div class="modal-header">
+                <h2>💳 cashless UPI Payment</h2>
+                <button class="close-btn" onclick="togglePaymentModal()">✕</button>
+            </div>
+            <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:16px;">Scan to pay the driver directly via any UPI app.</p>
+            
+            <div class="qr-container">
+                <div class="qr-code-mock" style="display:flex;align-items:center;justify-content:center;position:relative;">
+                    <div class="qr-scanner-line"></div>
+                    <img id="payment-qr-img" src="" alt="UPI QR Code" style="width:100%;height:100%;object-fit:contain;display:none;">
+                    <div class="qr-mock-pattern" id="payment-qr-placeholder"></div>
+                </div>
+            </div>
+            
+            <div class="driver-upi-details mt-2">
+                <p style="font-weight:600;font-size:0.95rem;" id="payment-driver-name">Driver: —</p>
+                <p style="font-size:0.8rem;color:var(--accent);" id="payment-driver-phone">UPI ID: driver@upi</p>
+            </div>
+            
+            <button class="btn btn-primary btn-block mt-3" onclick="confirmPayment()">✓ Payment Completed</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/rider.js"></script>
+    <script>
+        // Modal toggling helpers (globals bound to onclicks)
+        function toggleProfileModal() {
+            const modal = document.getElementById('profile-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('profile-name').value = App.user.name;
+                document.getElementById('profile-phone').value = App.user.phone;
+                document.getElementById('profile-password').value = '';
+            }
+        }
+        function toggleScheduleModal() {
+            document.getElementById('schedule-modal').classList.toggle('hidden');
+            // Set min datetime to now
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('schedule-datetime').min = now.toISOString().slice(0, 16);
+        }
+        function togglePaymentModal() {
+            document.getElementById('payment-modal').classList.toggle('hidden');
+        }
+        function confirmPayment() {
+            App.showToast('Payment verified successfully! 👍', 'success');
+            togglePaymentModal();
+        }
+    </script>
+</body>
+</html>

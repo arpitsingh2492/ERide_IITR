@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ERide — Campus E-Rickshaw</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛺</text></svg>">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a1a">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-logo">🛺</div>
+        <h1 class="splash-title">ERide</h1>
+        <div class="splash-subtitle">IIT Roorkee Campus</div>
+        <div class="splash-loader"></div>
+    </div>
+    <!-- Animated Background -->
+    <div class="bg-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <!-- Auth Page -->
+    <div class="auth-page">
+        <div class="auth-card">
+            <!-- Branding -->
+            <div class="auth-brand">
+                <span class="brand-icon">🛺</span>
+                <h1>ERide</h1>
+                <p>IIT Roorkee Campus E-Rickshaw</p>
+            </div>
+
+            <div class="glass-card">
+                <!-- Tabs -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-tab="login" onclick="switchTab('login')">Login</button>
+                    <button class="auth-tab" data-tab="register" onclick="switchTab('register')">Register</button>
+                </div>
+
+                <!-- Login Form -->
+                <form id="login-form" onsubmit="handleLogin(event)">
+                    <div class="input-group">
+                        <label>Phone Number</label>
+                        <input type="tel" class="input-field" id="login-phone" placeholder="Enter your phone number" required autocomplete="tel">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" class="input-field" id="login-password" placeholder="Enter your password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg btn-block mt-2" id="login-btn">
+                        <span>Login</span>
+                    </button>
+                </form>
+
+                <!-- Register Form -->
+                <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" class="input-field" id="reg-name" placeholder="Enter your full name" required autocomplete="name">
+                    </div>
+                    <div class="input-group">
+                        <label>Phone Number</label>
+                        <input type="tel" class="input-field" id="reg-phone" placeholder="Enter your phone number" required autocomplete="tel">
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" class="input-field" id="reg-password" placeholder="Create a password" required autocomplete="new-password">
+                    </div>
+                    <div class="input-group hidden" id="reg-vehicle-group">
+                        <label>Vehicle Number (for Drivers)</label>
+                        <input type="text" class="input-field" id="reg-vehicle" placeholder="e.g. UK08 ER 1234">
+                    </div>
+                    <div class="input-group hidden" id="reg-license-group">
+                        <label>Driving License Number (for Drivers)</label>
+                        <input type="text" class="input-field" id="reg-license" placeholder="e.g. DL-1234567890123">
+                    </div>
+                    <div class="input-group">
+                        <label>I am a</label>
+                        <div class="role-selector">
+                            <div class="role-option selected" data-role="rider" onclick="selectRole('rider')">
+                                <span class="role-icon">🙋</span>
+                                <span class="role-name">Rider</span>
+                            </div>
+                            <div class="role-option" data-role="driver" onclick="selectRole('driver')">
+                                <span class="role-icon">🛺</span>
+                                <span class="role-name">Driver</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg btn-block mt-2" id="reg-btn">
+                        <span>Create Account</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        App.registerSW();
+        
+        // Hide splash after a short delay
+        window.addEventListener('load', () => {
+            setTimeout(() => App.hideSplash(), 1500);
+        });
+
+        // Redirect if already logged in
+        if (App.isLoggedIn() && App.user) {
+            window.location.href = App.user.role === 'rider' ? 'rider.html' : 'driver.html';
+        }
+
+        let selectedRole = 'rider';
+
+        function switchTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.auth-tab[data-tab="${tab}"]`).classList.add('active');
+
+            if (tab === 'login') {
+                document.getElementById('login-form').classList.remove('hidden');
+                document.getElementById('register-form').classList.add('hidden');
+            } else {
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('register-form').classList.remove('hidden');
+            }
+        }
+
+        function selectRole(role) {
+            selectedRole = role;
+            document.querySelectorAll('.role-option').forEach(r => r.classList.remove('selected'));
+            document.querySelector(`.role-option[data-role="${role}"]`).classList.add('selected');
+            
+            const vehicleGroup = document.getElementById('reg-vehicle-group');
+            const licenseGroup = document.getElementById('reg-license-group');
+            if (role === 'driver') {
+                vehicleGroup.classList.remove('hidden');
+                licenseGroup.classList.remove('hidden');
+            } else {
+                vehicleGroup.classList.add('hidden');
+                licenseGroup.classList.add('hidden');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const phone = document.getElementById('login-phone').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!phone || !password) {
+                App.showToast('Please fill in all fields', 'warning');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner spinner-sm"></div><span>Logging in...</span>';
+
+            try {
+                const data = await App.api('/api/auth/login', {
+                    method: 'POST',
+                    body: { phone, password },
+                });
+
+                App.setAuth(data.token, data.user);
+                App.showToast('Welcome back! 🎉', 'success');
+
+                setTimeout(() => {
+                    window.location.href = data.user.role === 'rider' ? 'rider.html' : 'driver.html';
+                }, 500);
+            } catch (err) {
+                App.showToast(err.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<span>Login</span>';
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const btn = document.getElementById('reg-btn');
+            const name = document.getElementById('reg-name').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const vehicleNumber = document.getElementById('reg-vehicle').value.trim();
+            const licenseNumber = document.getElementById('reg-license').value.trim();
+
+            if (!name || !phone || !password) {
+                App.showToast('Please fill in all fields', 'warning');
+                return;
+            }
+            if (selectedRole === 'driver' && (!vehicleNumber || !licenseNumber)) {
+                App.showToast('Please enter vehicle and license details', 'warning');
+                return;
+            }
+            if (password.length < 4) {
+                App.showToast('Password must be at least 4 characters', 'warning');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner spinner-sm"></div><span>Creating account...</span>';
+
+            try {
+                const data = await App.api('/api/auth/register', {
+                    method: 'POST',
+                    body: { 
+                        name, 
+                        phone, 
+                        password, 
+                        role: selectedRole,
+                        ...(selectedRole === 'driver' ? { vehicle_number: vehicleNumber, license_number: licenseNumber } : {})
+                    },
+                });
+
+                App.setAuth(data.token, data.user);
+                App.showToast('Account created! 🎉', 'success');
+
+                setTimeout(() => {
+                    window.location.href = data.user.role === 'rider' ? 'rider.html' : 'driver.html';
+                }, 500);
+            } catch (err) {
+                App.showToast(err.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<span>Create Account</span>';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ERide - Ride History</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00ff88">
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <a href="javascript:history.back()" class="back-btn">← Back</a>
+        </div>
+        <div class="header-center">
+            <h1 class="logo">🛺 ERide</h1>
+            <span class="logo-sub">Ride History</span>
+        </div>
+        <div class="header-right"></div>
+    </header>
+
+    <!-- Content -->
+    <main class="history-container">
+        <div id="history-loading" class="history-loading">
+            <div class="spinner"></div>
+            <p>Loading rides...</p>
+        </div>
+        <div id="history-empty" class="history-empty hidden">
+            <div class="empty-icon">📭</div>
+            <h3>No rides yet</h3>
+            <p>Your ride history will appear here</p>
+        </div>
+        <div id="history-list" class="history-list"></div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script src="js/history.js"></script>
+</body>
+</html>
