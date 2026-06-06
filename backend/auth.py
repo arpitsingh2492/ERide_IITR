@@ -42,7 +42,7 @@ def verify_password(password: str, hashed: str) -> bool:
 # ── JWT Utilities ────────────────────────────────────────────────────────────
 
 
-def create_token(user_id: int, role: str) -> str:
+def create_token(user_id: str, role: str) -> str:
     """Create a signed JWT token."""
     payload = {
         "user_id": user_id,

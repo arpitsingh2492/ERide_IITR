@@ -1,95 +1,61 @@
-"""Async SQLite database layer for ERide.
-
-Uses aiosqlite for non-blocking database operations. The database file is
-stored at ``d:/ERide/backend/eride.db``.
-"""
+"""Async MongoDB database layer for ERide using Motor."""
 
 from __future__ import annotations
 
-import aiosqlite
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-DATABASE_PATH = str(Path(__file__).resolve().parent / "eride.db")
+from motor.motor_asyncio import AsyncIOMotorClient
+from bson.objectid import ObjectId
+from bson.errors import InvalidId
+from dotenv import load_dotenv
 
+# Load environment variables from the project root .env file
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
-async def get_db() -> aiosqlite.Connection:
-    """Open and return an async SQLite connection with row-factory enabled.
+MONGODB_URI = os.getenv("MONGODB_URI")
+if not MONGODB_URI:
+    raise RuntimeError("MONGODB_URI is not set in the environment or .env file")
 
-    The caller is responsible for closing the connection.
-    """
-    db = await aiosqlite.connect(DATABASE_PATH)
-    db.row_factory = aiosqlite.Row
-    await db.execute("PRAGMA journal_mode=WAL")
-    await db.execute("PRAGMA foreign_keys=ON")
-    return db
+# Global MongoDB client
+client = AsyncIOMotorClient(MONGODB_URI)
+# Use the database specified in the URI (we added /eride to the end)
+db = client.get_default_database("eride")
 
 
 async def init_db() -> None:
-    """Create the ``users`` and ``rides`` tables if they don't already exist."""
-    db = await get_db()
-    try:
-        await db.execute(
-            """
-            CREATE TABLE IF NOT EXISTS users (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                name        TEXT    NOT NULL,
-                phone       TEXT    NOT NULL UNIQUE,
-                password_hash TEXT  NOT NULL,
-                role        TEXT    NOT NULL CHECK(role IN ('rider', 'driver')),
-                vehicle_number TEXT,
-                license_number TEXT,
-                upi_id      TEXT,
-                qr_base64   TEXT,
-                created_at  TEXT    NOT NULL
-            )
-            """
-        )
-        # Safely try to alter table to add the column if database exists from before
-        try:
-            await db.execute("ALTER TABLE users ADD COLUMN qr_base64 TEXT")
-        except Exception:
-            pass
-
-        await db.execute(
-            """
-            CREATE TABLE IF NOT EXISTS rides (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                rider_id     INTEGER NOT NULL REFERENCES users(id),
-                driver_id    INTEGER          REFERENCES users(id),
-                pickup_lat   REAL    NOT NULL,
-                pickup_lng   REAL    NOT NULL,
-                pickup_name  TEXT    NOT NULL,
-                dest_lat     REAL    NOT NULL,
-                dest_lng     REAL    NOT NULL,
-                dest_name    TEXT    NOT NULL,
-                status       TEXT    NOT NULL DEFAULT 'requested'
-                                     CHECK(status IN (
-                                         'requested', 'accepted', 'in_progress',
-                                         'completed', 'cancelled', 'scheduled'
-                                     )),
-                scheduled_time TEXT,
-                rating       INTEGER  CHECK(rating BETWEEN 1 AND 5),
-                feedback     TEXT,
-                created_at   TEXT    NOT NULL,
-                accepted_at  TEXT,
-                completed_at TEXT
-            )
-            """
-        )
-        await db.commit()
-    finally:
-        await db.close()
+    """Initialize MongoDB collections and indexes."""
+    # Ensure phone numbers are unique in the users collection
+    await db.users.create_index("phone", unique=True)
 
 
-# ── Helper: row → dict ──────────────────────────────────────────────────────
+# ── Helper: MongoDB Document → dict ──────────────────────────────────────────
 
 
-def _row_to_dict(row: aiosqlite.Row | None) -> dict | None:
-    """Convert an ``aiosqlite.Row`` to a plain ``dict``, or return None."""
-    if row is None:
+def _doc_to_dict(doc: dict | None) -> dict | None:
+    """Convert a MongoDB document to a standard dict, mapping _id to string id."""
+    if doc is None:
         return None
-    return dict(row)
+    # Convert ObjectId to string and rename '_id' to 'id'
+    doc["id"] = str(doc.pop("_id"))
+    
+    # Convert any other ObjectIds (like rider_id, driver_id) to strings
+    if "rider_id" in doc and doc["rider_id"] is not None:
+        doc["rider_id"] = str(doc["rider_id"])
+    if "driver_id" in doc and doc["driver_id"] is not None:
+        doc["driver_id"] = str(doc["driver_id"])
+        
+    return doc
+
+
+def _safe_object_id(id_str: str) -> ObjectId | None:
+    """Safely parse an ObjectId from a string, returning None if invalid."""
+    try:
+        return ObjectId(id_str)
+    except InvalidId:
+        return None
 
 
 # ── User CRUD ────────────────────────────────────────────────────────────────
@@ -107,55 +73,43 @@ async def create_user(
 ) -> dict:
     """Insert a new user and return the created user dict."""
     now = datetime.now(timezone.utc).isoformat()
-    db = await get_db()
-    try:
-        cursor = await db.execute(
-            "INSERT INTO users (name, phone, password_hash, role, vehicle_number, license_number, upi_id, qr_base64, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (name, phone, password_hash, role, vehicle_number, license_number, upi_id, qr_base64, now),
-        )
-        await db.commit()
-        user_id = cursor.lastrowid
-
-        return {
-            "id": user_id,
-            "name": name,
-            "phone": phone,
-            "password_hash": password_hash,
-            "role": role,
-            "vehicle_number": vehicle_number,
-            "license_number": license_number,
-            "upi_id": upi_id,
-            "qr_base64": qr_base64,
-            "created_at": now,
-        }
-    finally:
-        await db.close()
+    
+    user_doc = {
+        "name": name,
+        "phone": phone,
+        "password_hash": password_hash,
+        "role": role,
+        "vehicle_number": vehicle_number,
+        "license_number": license_number,
+        "upi_id": upi_id,
+        "qr_base64": qr_base64,
+        "created_at": now,
+    }
+    
+    result = await db.users.insert_one(user_doc)
+    
+    # Fetch the inserted document to ensure we return it consistently
+    doc = await db.users.find_one({"_id": result.inserted_id})
+    return _doc_to_dict(doc)
 
 
 async def get_user_by_phone(phone: str) -> dict | None:
     """Look up a user by phone number."""
-    db = await get_db()
-    try:
-        cursor = await db.execute("SELECT * FROM users WHERE phone = ?", (phone,))
-        row = await cursor.fetchone()
-        return _row_to_dict(row)
-    finally:
-        await db.close()
+    doc = await db.users.find_one({"phone": phone})
+    return _doc_to_dict(doc)
 
 
-async def get_user_by_id(user_id: int) -> dict | None:
-    """Look up a user by primary key."""
-    db = await get_db()
-    try:
-        cursor = await db.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        row = await cursor.fetchone()
-        return _row_to_dict(row)
-    finally:
-        await db.close()
+async def get_user_by_id(user_id: str) -> dict | None:
+    """Look up a user by primary key (ObjectId string)."""
+    oid = _safe_object_id(user_id)
+    if not oid:
+        return None
+    doc = await db.users.find_one({"_id": oid})
+    return _doc_to_dict(doc)
 
 
 async def update_user_profile(
-    user_id: int,
+    user_id: str,
     name: str,
     phone: str,
     password_hash: str | None = None,
@@ -165,43 +119,34 @@ async def update_user_profile(
     qr_base64: str | None = None,
 ) -> dict | None:
     """Update user profile information. Null values mean no update."""
-    db = await get_db()
-    try:
-        fields = ["name = ?", "phone = ?"]
-        params = [name, phone]
+    oid = _safe_object_id(user_id)
+    if not oid:
+        return None
+        
+    update_fields = {"name": name, "phone": phone}
 
-        if password_hash:
-            fields.append("password_hash = ?")
-            params.append(password_hash)
-        if vehicle_number is not None:
-            fields.append("vehicle_number = ?")
-            params.append(vehicle_number)
-        if license_number is not None:
-            fields.append("license_number = ?")
-            params.append(license_number)
-        if upi_id is not None:
-            fields.append("upi_id = ?")
-            params.append(upi_id)
-        if qr_base64 is not None:
-            fields.append("qr_base64 = ?")
-            params.append(qr_base64)
+    if password_hash:
+        update_fields["password_hash"] = password_hash
+    if vehicle_number is not None:
+        update_fields["vehicle_number"] = vehicle_number
+    if license_number is not None:
+        update_fields["license_number"] = license_number
+    if upi_id is not None:
+        update_fields["upi_id"] = upi_id
+    if qr_base64 is not None:
+        update_fields["qr_base64"] = qr_base64
 
-        params.append(user_id)
-        await db.execute(f"UPDATE users SET {', '.join(fields)} WHERE id = ?", params)
-        await db.commit()
-
-        cursor = await db.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        row = await cursor.fetchone()
-        return _row_to_dict(row)
-    finally:
-        await db.close()
+    await db.users.update_one({"_id": oid}, {"$set": update_fields})
+    
+    doc = await db.users.find_one({"_id": oid})
+    return _doc_to_dict(doc)
 
 
 # ── Ride CRUD ────────────────────────────────────────────────────────────────
 
 
 async def create_ride(
-    rider_id: int,
+    rider_id: str,
     pickup_lat: float,
     pickup_lng: float,
     pickup_name: str,
@@ -213,202 +158,179 @@ async def create_ride(
     """Create a new ride request (either on-demand or scheduled)."""
     now = datetime.now(timezone.utc).isoformat()
     initial_status = "scheduled" if scheduled_time else "requested"
-    db = await get_db()
-    try:
-        cursor = await db.execute(
-            """
-            INSERT INTO rides
-                (rider_id, pickup_lat, pickup_lng, pickup_name,
-                 dest_lat, dest_lng, dest_name, status, scheduled_time, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                rider_id,
-                pickup_lat,
-                pickup_lng,
-                pickup_name,
-                dest_lat,
-                dest_lng,
-                dest_name,
-                initial_status,
-                scheduled_time,
-                now,
-            ),
-        )
-        await db.commit()
-        ride_id = cursor.lastrowid
-
-        return {
-            "id": ride_id,
-            "rider_id": rider_id,
-            "driver_id": None,
-            "pickup_lat": pickup_lat,
-            "pickup_lng": pickup_lng,
-            "pickup_name": pickup_name,
-            "dest_lat": dest_lat,
-            "dest_lng": dest_lng,
-            "dest_name": dest_name,
-            "status": initial_status,
-            "scheduled_time": scheduled_time,
-            "rating": None,
-            "feedback": None,
-            "created_at": now,
-            "accepted_at": None,
-            "completed_at": None,
-        }
-    finally:
-        await db.close()
+    
+    ride_doc = {
+        "rider_id": _safe_object_id(rider_id),
+        "driver_id": None,
+        "pickup_lat": pickup_lat,
+        "pickup_lng": pickup_lng,
+        "pickup_name": pickup_name,
+        "dest_lat": dest_lat,
+        "dest_lng": dest_lng,
+        "dest_name": dest_name,
+        "status": initial_status,
+        "scheduled_time": scheduled_time,
+        "rating": None,
+        "feedback": None,
+        "created_at": now,
+        "accepted_at": None,
+        "completed_at": None,
+    }
+    
+    result = await db.rides.insert_one(ride_doc)
+    doc = await db.rides.find_one({"_id": result.inserted_id})
+    return _doc_to_dict(doc)
 
 
 async def update_ride_status(
-    ride_id: int, status: str, driver_id: int | None = None
+    ride_id: str, status: str, driver_id: str | None = None
 ) -> dict | None:
     """Update a ride's status and optionally assign a driver."""
     now = datetime.now(timezone.utc).isoformat()
-    db = await get_db()
-    try:
-        fields = ["status = ?"]
-        params: list = [status]
+    oid = _safe_object_id(ride_id)
+    if not oid:
+        return None
+        
+    update_fields = {"status": status}
 
-        if driver_id is not None:
-            fields.append("driver_id = ?")
-            params.append(driver_id)
+    if driver_id is not None:
+        update_fields["driver_id"] = _safe_object_id(driver_id)
 
-        if status == "accepted":
-            fields.append("accepted_at = ?")
-            params.append(now)
-        elif status in ("completed", "cancelled"):
-            fields.append("completed_at = ?")
-            params.append(now)
+    if status == "accepted":
+        update_fields["accepted_at"] = now
+    elif status in ("completed", "cancelled"):
+        update_fields["completed_at"] = now
 
-        params.append(ride_id)
-
-        await db.execute(
-            f"UPDATE rides SET {', '.join(fields)} WHERE id = ?",
-            params,
-        )
-        await db.commit()
-
-        cursor = await db.execute("SELECT * FROM rides WHERE id = ?", (ride_id,))
-        row = await cursor.fetchone()
-        return _row_to_dict(row)
-    finally:
-        await db.close()
+    await db.rides.update_one({"_id": oid}, {"$set": update_fields})
+    
+    doc = await db.rides.find_one({"_id": oid})
+    return _doc_to_dict(doc)
 
 
-async def get_ride(ride_id: int) -> dict | None:
+async def get_ride(ride_id: str) -> dict | None:
     """Fetch a single ride by ID."""
-    db = await get_db()
-    try:
-        cursor = await db.execute("SELECT * FROM rides WHERE id = ?", (ride_id,))
-        row = await cursor.fetchone()
-        return _row_to_dict(row)
-    finally:
-        await db.close()
+    oid = _safe_object_id(ride_id)
+    if not oid:
+        return None
+    doc = await db.rides.find_one({"_id": oid})
+    return _doc_to_dict(doc)
 
 
-async def get_rides_for_user(user_id: int, role: str) -> list[dict]:
+async def get_rides_for_user(user_id: str, role: str) -> list[dict]:
     """Get all rides associated with a user."""
-    db = await get_db()
-    try:
-        column = "rider_id" if role == "rider" else "driver_id"
-        cursor = await db.execute(
-            f"SELECT * FROM rides WHERE {column} = ? ORDER BY created_at DESC",
-            (user_id,),
-        )
-        rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        await db.close()
+    oid = _safe_object_id(user_id)
+    if not oid:
+        return []
+        
+    column = "rider_id" if role == "rider" else "driver_id"
+    cursor = db.rides.find({column: oid}).sort("created_at", -1)
+    
+    rows = await cursor.to_list(length=1000)
+    return [_doc_to_dict(r) for r in rows]
 
 
 # ── Specialized Queries (Ratings, Analytics, Scheduling) ──────────────────
 
 
-async def add_ride_rating(ride_id: int, rating: int, feedback: str | None = None) -> dict | None:
+async def add_ride_rating(ride_id: str, rating: int, feedback: str | None = None) -> dict | None:
     """Submit a star rating and written feedback comment for a ride."""
-    db = await get_db()
-    try:
-        await db.execute(
-            "UPDATE rides SET rating = ?, feedback = ? WHERE id = ?",
-            (rating, feedback, ride_id)
-        )
-        await db.commit()
-
-        cursor = await db.execute("SELECT * FROM rides WHERE id = ?", (ride_id,))
-        row = await cursor.fetchone()
-        return _row_to_dict(row)
-    finally:
-        await db.close()
+    oid = _safe_object_id(ride_id)
+    if not oid:
+        return None
+        
+    await db.rides.update_one(
+        {"_id": oid}, 
+        {"$set": {"rating": rating, "feedback": feedback}}
+    )
+    
+    doc = await db.rides.find_one({"_id": oid})
+    return _doc_to_dict(doc)
 
 
-async def get_driver_stats(driver_id: int) -> dict:
+async def get_driver_stats(driver_id: str) -> dict:
     """Aggregate statistics and feedback for a driver's dashboard."""
-    db = await get_db()
-    try:
-        cursor = await db.execute("SELECT COUNT(*) FROM rides WHERE driver_id = ? AND status = 'completed'", (driver_id,))
-        completed_count = (await cursor.fetchone())[0]
-
-        cursor = await db.execute("SELECT COUNT(*) FROM rides WHERE driver_id = ? AND status IN ('accepted', 'in_progress')", (driver_id,))
-        active_count = (await cursor.fetchone())[0]
-
-        cursor = await db.execute("SELECT AVG(rating), COUNT(rating) FROM rides WHERE driver_id = ? AND rating IS NOT NULL", (driver_id,))
-        row = await cursor.fetchone()
-        avg_rating = round(row[0], 2) if row[0] is not None else 0.0
-        ratings_count = row[1]
-
-        cursor = await db.execute(
-            "SELECT rating, feedback, created_at FROM rides WHERE driver_id = ? AND feedback IS NOT NULL AND feedback != '' ORDER BY created_at DESC LIMIT 10",
-            (driver_id,)
-        )
-        feedbacks = [dict(r) for r in await cursor.fetchall()]
-
+    oid = _safe_object_id(driver_id)
+    if not oid:
         return {
-            "completed_rides": completed_count,
-            "active_rides": active_count,
-            "average_rating": avg_rating,
-            "ratings_count": ratings_count,
-            "feedbacks": feedbacks
+            "completed_rides": 0,
+            "active_rides": 0,
+            "average_rating": 0.0,
+            "ratings_count": 0,
+            "feedbacks": []
         }
-    finally:
-        await db.close()
+
+    completed_count = await db.rides.count_documents({"driver_id": oid, "status": "completed"})
+    active_count = await db.rides.count_documents({"driver_id": oid, "status": {"$in": ["accepted", "in_progress"]}})
+
+    # Calculate average rating using aggregation
+    pipeline = [
+        {"$match": {"driver_id": oid, "rating": {"$ne": None}}},
+        {"$group": {"_id": None, "avg_rating": {"$avg": "$rating"}, "count": {"$sum": 1}}}
+    ]
+    rating_stats = await db.rides.aggregate(pipeline).to_list(length=1)
+    
+    if rating_stats:
+        avg_rating = round(rating_stats[0]["avg_rating"], 2)
+        ratings_count = rating_stats[0]["count"]
+    else:
+        avg_rating = 0.0
+        ratings_count = 0
+
+    # Get recent feedbacks
+    cursor = db.rides.find(
+        {"driver_id": oid, "feedback": {"$ne": None, "$ne": ""}},
+        {"rating": 1, "feedback": 1, "created_at": 1}
+    ).sort("created_at", -1).limit(10)
+    
+    feedbacks = await cursor.to_list(length=10)
+    feedbacks = [_doc_to_dict(f) for f in feedbacks]
+
+    return {
+        "completed_rides": completed_count,
+        "active_rides": active_count,
+        "average_rating": avg_rating,
+        "ratings_count": ratings_count,
+        "feedbacks": feedbacks
+    }
 
 
 async def get_scheduled_rides() -> list[dict]:
     """Retrieve all open scheduled rides waiting for a driver."""
-    db = await get_db()
-    try:
-        cursor = await db.execute("SELECT * FROM rides WHERE status = 'scheduled' AND driver_id IS NULL ORDER BY scheduled_time ASC")
-        rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        await db.close()
+    cursor = db.rides.find(
+        {"status": "scheduled", "driver_id": None}
+    ).sort("scheduled_time", 1)
+    
+    rows = await cursor.to_list(length=100)
+    return [_doc_to_dict(r) for r in rows]
 
 
-async def claim_scheduled_ride(ride_id: int, driver_id: int) -> dict | None:
+async def claim_scheduled_ride(ride_id: str, driver_id: str) -> dict | None:
     """Assign a driver to a scheduled ride and update its status to accepted."""
     now = datetime.now(timezone.utc).isoformat()
-    db = await get_db()
-    try:
-        await db.execute(
-            "UPDATE rides SET driver_id = ?, status = 'accepted', accepted_at = ? WHERE id = ? AND status = 'scheduled'",
-            (driver_id, now, ride_id)
-        )
-        await db.commit()
-
-        cursor = await db.execute("SELECT * FROM rides WHERE id = ?", (ride_id,))
-        row = await cursor.fetchone()
-        return _row_to_dict(row)
-    finally:
-        await db.close()
+    ride_oid = _safe_object_id(ride_id)
+    driver_oid = _safe_object_id(driver_id)
+    
+    if not ride_oid or not driver_oid:
+        return None
+        
+    result = await db.rides.update_one(
+        {"_id": ride_oid, "status": "scheduled"},
+        {"$set": {
+            "driver_id": driver_oid,
+            "status": "accepted",
+            "accepted_at": now
+        }}
+    )
+    
+    if result.modified_count == 0:
+        return None # Ride might have been claimed by someone else or doesn't exist
+        
+    doc = await db.rides.find_one({"_id": ride_oid})
+    return _doc_to_dict(doc)
 
 
 async def get_all_rides() -> list[dict]:
     """Get all rides in the system."""
-    db = await get_db()
-    try:
-        cursor = await db.execute("SELECT * FROM rides ORDER BY created_at DESC")
-        rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        await db.close()
+    cursor = db.rides.find().sort("created_at", -1)
+    rows = await cursor.to_list(length=1000)
+    return [_doc_to_dict(r) for r in rows]

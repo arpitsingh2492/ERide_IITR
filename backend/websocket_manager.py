@@ -61,25 +61,25 @@ class ConnectionManager:
 
     # ── Connection lifecycle ─────────────────────────────────────────────
 
-    async def connect_rider(self, user_id: int, ws: WebSocket) -> None:
+    async def connect_rider(self, user_id: str, ws: WebSocket) -> None:
         """Register a rider's WebSocket connection."""
         self.rider_connections[user_id] = ws
         logger.info("Rider %d connected (%d riders online)", user_id, len(self.rider_connections))
         # Immediately send active drivers
         await self.send_driver_locations_to_rider(user_id)
 
-    def disconnect_rider(self, user_id: int) -> None:
+    def disconnect_rider(self, user_id: str) -> None:
         """Remove a rider's WebSocket connection."""
         self.rider_connections.pop(user_id, None)
         logger.info("Rider %d disconnected", user_id)
 
-    async def connect_driver(self, user_id: int, ws: WebSocket) -> None:
+    async def connect_driver(self, user_id: str, ws: WebSocket) -> None:
         """Register a driver's WebSocket connection."""
         self.driver_connections[user_id] = ws
         logger.info("Driver %d connected (%d drivers online)", user_id, len(self.driver_connections))
         await self.broadcast_driver_locations()
 
-    async def disconnect_driver(self, user_id: int) -> None:
+    async def disconnect_driver(self, user_id: str) -> None:
         """Remove a driver's WebSocket and location data."""
         self.driver_connections.pop(user_id, None)
         self.driver_locations.pop(user_id, None)
@@ -99,7 +99,7 @@ class ConnectionManager:
         for uid in dead:
             await self.disconnect_driver(uid)
 
-    async def send_to_rider(self, user_id: int, message: dict) -> None:
+    async def send_to_rider(self, user_id: str, message: dict) -> None:
         """Send a JSON message to a specific rider, if connected."""
         ws = self.rider_connections.get(user_id)
         if ws:
@@ -108,7 +108,7 @@ class ConnectionManager:
             except Exception:
                 self.disconnect_rider(user_id)
 
-    async def send_to_driver(self, user_id: int, message: dict) -> None:
+    async def send_to_driver(self, user_id: str, message: dict) -> None:
         """Send a JSON message to a specific driver, if connected."""
         ws = self.driver_connections.get(user_id)
         if ws:
@@ -132,14 +132,14 @@ class ConnectionManager:
         for uid in dead:
             self.disconnect_rider(uid)
 
-    async def send_driver_locations_to_rider(self, user_id: int) -> None:
+    async def send_driver_locations_to_rider(self, user_id: str) -> None:
         """Send current driver locations to a single rider on connect."""
         drivers = self.get_online_drivers()
         await self.send_to_rider(user_id, _msg(WS_DRIVER_LOCATIONS, {"drivers": drivers}))
 
     # ── Location tracking ────────────────────────────────────────────────
 
-    def update_driver_location(self, user_id: int, lat: float, lng: float) -> None:
+    def update_driver_location(self, user_id: str, lat: float, lng: float) -> None:
         """Store or update a driver's last-known GPS position."""
         self.driver_locations[user_id] = {
             "lat": lat,
@@ -157,7 +157,7 @@ class ConnectionManager:
 
     # ── Ride-request handler (rider) ─────────────────────────────────────
 
-    async def _handle_ride_request(self, user_id: int, data: dict) -> None:
+    async def _handle_ride_request(self, user_id: str, data: dict) -> None:
         """Process a ``RIDE_REQUEST`` from a rider."""
         try:
             ride = await create_ride(
@@ -230,7 +230,7 @@ class ConnectionManager:
 
     # ── Ride-accepted handler (driver) ───────────────────────────────────
 
-    async def _handle_ride_accepted(self, driver_id: int, data: dict) -> None:
+    async def _handle_ride_accepted(self, driver_id: str, data: dict) -> None:
         """Process a ``RIDE_ACCEPTED`` from a driver (first-accept-wins)."""
         ride_id = data.get("ride_id")
         if ride_id is None:
@@ -238,7 +238,7 @@ class ConnectionManager:
             return
 
         try:
-            ride_id = int(ride_id)
+            ride_id = str(ride_id)
         except (ValueError, TypeError):
             await self.send_to_driver(driver_id, _msg(WS_ERROR, {"message": "Invalid ride_id"}))
             return
@@ -317,7 +317,7 @@ class ConnectionManager:
 
     # ── Ride Started handler (driver) ────────────────────────────────────
 
-    async def _handle_ride_started(self, driver_id: int, data: dict) -> None:
+    async def _handle_ride_started(self, driver_id: str, data: dict) -> None:
         """Process a ``RIDE_STARTED`` notification from the driver."""
         ride_id = data.get("ride_id")
         if ride_id is None:
@@ -325,7 +325,7 @@ class ConnectionManager:
             return
 
         try:
-            ride_id = int(ride_id)
+            ride_id = str(ride_id)
         except (ValueError, TypeError):
             await self.send_to_driver(driver_id, _msg(WS_ERROR, {"message": "Invalid ride_id"}))
             return
@@ -364,7 +364,7 @@ class ConnectionManager:
 
     # ── Location-update handler (driver) ─────────────────────────────────
 
-    async def _handle_location_update(self, driver_id: int, data: dict) -> None:
+    async def _handle_location_update(self, driver_id: str, data: dict) -> None:
         """Process a ``LOCATION_UPDATE`` from a driver."""
         lat = data.get("lat")
         lng = data.get("lng")
@@ -403,7 +403,7 @@ class ConnectionManager:
 
     # ── Ride-completed handler (driver) ──────────────────────────────────
 
-    async def _handle_ride_completed(self, driver_id: int, data: dict) -> None:
+    async def _handle_ride_completed(self, driver_id: str, data: dict) -> None:
         """Process a ``RIDE_COMPLETED`` from a driver."""
         ride_id = data.get("ride_id")
         if ride_id is None:
@@ -411,7 +411,7 @@ class ConnectionManager:
             return
 
         try:
-            ride_id = int(ride_id)
+            ride_id = str(ride_id)
         except (ValueError, TypeError):
             await self.send_to_driver(driver_id, _msg(WS_ERROR, {"message": "Invalid ride_id"}))
             return
@@ -453,7 +453,7 @@ manager = ConnectionManager()
 # ── Top-level WebSocket handler ──────────────────────────────────────────────
 
 
-async def handle_websocket(websocket: WebSocket, user_id: int, role: str) -> None:
+async def handle_websocket(websocket: WebSocket, user_id: str, role: str) -> None:
     """Accept a WebSocket connection and route messages based on user role."""
     await websocket.accept()
 
@@ -483,7 +483,7 @@ async def handle_websocket(websocket: WebSocket, user_id: int, role: str) -> Non
                     ride_id = data.get("ride_id")
                     if ride_id:
                         try:
-                            r_id = int(ride_id)
+                            r_id = str(ride_id)
                             manager.pending_rides.pop(r_id, None)
                             manager.active_rides.pop(r_id, None)
                             await update_ride_status(r_id, "cancelled")

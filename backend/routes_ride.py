@@ -57,7 +57,7 @@ async def available_schedules(authorization: str = Header(None)):
 
 
 @router.post("/scheduled/{ride_id}/claim")
-async def claim_booking(ride_id: int, authorization: str = Header(None)):
+async def claim_booking(ride_id: str, authorization: str = Header(None)):
     """Let a driver claim a scheduled ride."""
     raw_token = _extract_bearer_token(authorization)
     token_data = decode_token(raw_token)
@@ -105,7 +105,7 @@ async def schedule_new_ride(data: RideSchedule, authorization: str = Header(None
 
 
 @router.post("/{ride_id}/rate")
-async def rate_ride(ride_id: int, data: RideRate, authorization: str = Header(None)):
+async def rate_ride(ride_id: str, data: RideRate, authorization: str = Header(None)):
     """Submit a rating and comment feedback for a completed ride.
 
     Pushes a real-time notification to the driver if they are connected.
@@ -303,7 +303,7 @@ async def demand_forecasting(authorization: str = Header(None)):
 
 
 @router.get("/{ride_id}")
-async def get_ride_detail(ride_id: int, authorization: str = Header(None)):
+async def get_ride_detail(ride_id: str, authorization: str = Header(None)):
     """Return details for a specific ride."""
     raw_token = _extract_bearer_token(authorization)
     token_data = decode_token(raw_token)
