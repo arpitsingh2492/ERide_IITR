@@ -33,7 +33,7 @@ ERide is a full-stack, real-time e-rickshaw ride-hailing and dispatch system tai
 
 ### 6. Cashless Payments & Star Ratings
 - Simulated **UPI QR Code payment scanner overlay** at completion with driver metadata, resolving cashless transaction needs without violating pricing/fare constraints.
-- **Custom QR Code Upload**: Drivers can upload their custom UPI QR scanner image (converted to base64 and stored in SQLite). The rider's payment dialog dynamically renders this custom QR code instead of the default placeholder.
+- **Custom QR Code Upload**: Drivers can upload their custom UPI QR scanner image (converted to base64 and stored in MongoDB). The rider's payment dialog dynamically renders this custom QR code instead of the default placeholder.
 - Star ratings (1-5 stars) and optional written comments submitted by riders and saved to database history logs.
 
 ### 7. Driver Performance Analytics & Real-Time Sync
@@ -51,7 +51,7 @@ ERide is a full-stack, real-time e-rickshaw ride-hailing and dispatch system tai
 ## 🛠️ Technology Stack
 
 - **Backend**: Python 3.10+, FastAPI (Asynchronous framework), Uvicorn (ASGI web server).
-- **Database**: SQLite (SQL engine) managed asynchronously via `aiosqlite`.
+- **Database**: MongoDB Atlas (NoSQL cloud database) managed asynchronously via `motor`.
 - **Authentication**: JWT (JSON Web Tokens via PyJWT), Bcrypt (Password hashing).
 - **Real-Time Communication**: WebSockets (State synchronization & broadcasts).
 - **Frontend**: HTML5, Vanilla JavaScript (ES6), CSS3 (Glassmorphism & animations).
@@ -66,7 +66,7 @@ ERide is a full-stack, real-time e-rickshaw ride-hailing and dispatch system tai
 d:/ERide/
 ├── backend/
 │   ├── auth.py              # JWT authentication & profile REST routes
-│   ├── database.py          # SQLite schema, CRUD operations & aggregations
+│   ├── database.py          # MongoDB setup, CRUD operations & aggregations
 │   ├── eta.py               # Haversine distance & travel time calculator
 │   ├── main.py              # FastAPI app & WebSocket handlers
 │   ├── models.py            # Pydantic schemas & WebSocket constants
@@ -95,7 +95,13 @@ d:/ERide/
 
 ## ⚙️ Setup & Installation
 
-### Step 1: Install Python Dependencies
+### Step 1: Environment Variables
+Create a `.env` file in the root directory and add your MongoDB Atlas connection string:
+```env
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster...
+```
+
+### Step 2: Install Python Dependencies
 1. Open PowerShell or Terminal and navigate to the project directory:
    ```bash
    cd d:\ERide
@@ -110,7 +116,7 @@ Launch the FastAPI development server:
 ```bash
 python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
-- The backend database (`eride.db`) is automatically initialized on the first startup.
+- The backend connects to MongoDB Atlas using the URI from your `.env` file.
 - The web server serves the static frontend files directly at `http://localhost:8000`.
 
 ---
