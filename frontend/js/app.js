@@ -104,11 +104,18 @@ const App = {
                 clearTimeout(this._wsReconnectTimer);
                 this._wsReconnectTimer = null;
             }
+            // Start heartbeat
+            this._wsPingTimer = setInterval(() => {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({ type: 'ping' }));
+                }
+            }, 30000);
         };
 
         this.ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
+                if (msg.type === 'pong') return; // Ignore pong responses
                 console.log('[WS] Received:', msg.type, msg.data);
                 if (this._wsOnMessage) {
                     this._wsOnMessage(msg.type, msg.data || {});
@@ -120,6 +127,10 @@ const App = {
 
         this.ws.onclose = (event) => {
             console.log('[WS] Closed', event.code, event.reason);
+            if (this._wsPingTimer) {
+                clearInterval(this._wsPingTimer);
+                this._wsPingTimer = null;
+            }
             if (!this._wsManualClose) {
                 this.showToast('Connection lost. Reconnecting...', 'warning');
                 this._wsReconnectTimer = setTimeout(() => {
@@ -139,6 +150,10 @@ const App = {
         if (this._wsReconnectTimer) {
             clearTimeout(this._wsReconnectTimer);
             this._wsReconnectTimer = null;
+        }
+        if (this._wsPingTimer) {
+            clearInterval(this._wsPingTimer);
+            this._wsPingTimer = null;
         }
         if (this.ws) {
             this.ws.close();

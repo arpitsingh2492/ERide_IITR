@@ -490,6 +490,8 @@ async def handle_websocket(websocket: WebSocket, user_id: int, role: str) -> Non
                             await manager.broadcast_to_drivers(_msg(WS_RIDE_CANCELLED, {"ride_id": r_id, "reason": "Rider cancelled request"}))
                         except Exception:
                             pass
+                elif msg_type == "ping":
+                    await websocket.send_json({"type": "pong"})
                 else:
                     await websocket.send_json(
                         _msg(WS_ERROR, {"message": f"Unknown message type for rider: {msg_type}"})
@@ -504,6 +506,8 @@ async def handle_websocket(websocket: WebSocket, user_id: int, role: str) -> Non
                     await manager._handle_location_update(user_id, data)
                 elif msg_type == WS_RIDE_COMPLETED:
                     await manager._handle_ride_completed(user_id, data)
+                elif msg_type == "ping":
+                    await websocket.send_json({"type": "pong"})
                 else:
                     await websocket.send_json(
                         _msg(WS_ERROR, {"message": f"Unknown message type for driver: {msg_type}"})
