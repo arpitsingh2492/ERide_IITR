@@ -144,7 +144,7 @@ const RiderApp = {
         if (nearest && minDist < 0.005) {
             document.getElementById('location-text').textContent = `Near ${nearest.name}`;
         } else {
-            document.getElementById('location-text').textContent = 'IIT Roorkee Campus';
+            document.getElementById('location-text').textContent = 'Custom Pin Location';
         }
     },
 
@@ -212,7 +212,7 @@ const RiderApp = {
         }
 
         // Find nearest campus location name for pickup
-        let pickupName = 'Current Location';
+        let pickupName = 'My Location';
         let minDist = Infinity;
         CAMPUS_LOCATIONS.forEach(loc => {
             const dist = Math.sqrt(
@@ -220,7 +220,11 @@ const RiderApp = {
             );
             if (dist < minDist) {
                 minDist = dist;
-                pickupName = loc.name;
+                if (minDist < 0.005) {
+                    pickupName = loc.name;
+                } else {
+                    pickupName = 'Custom Location';
+                }
             }
         });
 
@@ -259,7 +263,7 @@ const RiderApp = {
 
         const scheduledTime = new Date(datetimeVal).toISOString();
 
-        let pickupName = 'Current Location';
+        let pickupName = 'My Location';
         let minDist = Infinity;
         CAMPUS_LOCATIONS.forEach(loc => {
             const dist = Math.sqrt(
@@ -267,7 +271,11 @@ const RiderApp = {
             );
             if (dist < minDist) {
                 minDist = dist;
-                pickupName = loc.name;
+                if (minDist < 0.005) {
+                    pickupName = loc.name;
+                } else {
+                    pickupName = 'Custom Location';
+                }
             }
         });
 
@@ -740,13 +748,20 @@ const RiderApp = {
         const upiAddress = this.driverUpi || 'paytmqr@paytm';
         const upiName = encodeURIComponent(this.driverName || 'ERide Driver');
         
+        const upiUri = `upi://pay?pa=${upiAddress}&pn=${upiName}&cu=INR`;
+        
+        const upiLinkBtn = document.getElementById('upi-link-btn');
+        if (upiLinkBtn) {
+            upiLinkBtn.href = upiUri;
+        }
+
         const qrImg = document.getElementById('payment-qr-img');
         const qrPlaceholder = document.getElementById('payment-qr-placeholder');
         if (qrImg) {
             if (this.driverQrBase64) {
                 qrImg.src = this.driverQrBase64;
             } else {
-                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent("upi://pay?pa=" + upiAddress + "&pn=" + upiName + "&cu=INR")}`;
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(upiUri)}`;
             }
             qrImg.style.display = 'block';
         }

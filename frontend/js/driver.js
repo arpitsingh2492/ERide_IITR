@@ -233,9 +233,15 @@ const DriverApp = {
 
         // Route line: Dijkstra optimized
         if (this.currentLat && this.currentLng && ride.pickup_lat && ride.pickup_lng && ride.dest_lat && ride.dest_lng) {
-            const points = CampusMap.getRoutePoints(this.currentLat, this.currentLng, ride.pickup_lat, ride.pickup_lng);
-            const destPoints = CampusMap.getRoutePoints(ride.pickup_lat, ride.pickup_lng, ride.dest_lat, ride.dest_lng);
-            const totalRoute = points.concat(destPoints.slice(1));
+            let totalRoute = [];
+            
+            if (ride.status === 'in_progress') {
+                totalRoute = CampusMap.getRoutePoints(this.currentLat, this.currentLng, ride.dest_lat, ride.dest_lng);
+            } else {
+                const points = CampusMap.getRoutePoints(this.currentLat, this.currentLng, ride.pickup_lat, ride.pickup_lng);
+                const destPoints = CampusMap.getRoutePoints(ride.pickup_lat, ride.pickup_lng, ride.dest_lat, ride.dest_lng);
+                totalRoute = points.concat(destPoints.slice(1));
+            }
 
             this._activeRoute = L.polyline(totalRoute, {
                 color: '#00ff88',
@@ -576,6 +582,19 @@ const DriverApp = {
     startRide() {
         if (!this.activeRide) return;
         App.sendWS('RIDE_STARTED', { ride_id: this.activeRide.ride_id });
+        
+        this.activeRide.status = 'in_progress';
+
+        document.getElementById('start-ride-btn').classList.add('hidden');
+        document.getElementById('complete-btn').classList.remove('hidden');
+
+        const badge = document.getElementById('active-status-badge');
+        if (badge) {
+            badge.innerHTML = '<span>Active Ride — In Progress</span>';
+            badge.style.background = 'linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%)';
+        }
+
+        this.updateActiveMap();
     },
 
     /* ---- Complete Ride ---- */
