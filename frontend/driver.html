@@ -38,13 +38,10 @@
         </div>
 
         <div class="header-actions">
-            <button class="history-btn" onclick="toggleProfileModal()">👤 Profile</button>
-            <button class="history-btn" onclick="window.location.href='history.html'">History</button>
             <div class="toggle-switch" id="online-toggle" onclick="DriverApp.toggleOnline()">
                 <span class="toggle-label" id="toggle-label">Offline</span>
                 <div class="toggle-track"><div class="toggle-thumb"></div></div>
             </div>
-            <button class="btn-logout" onclick="DriverApp.logout()">Logout</button>
         </div>
     </header>
 
@@ -226,6 +223,26 @@
         </div>
 
     </div>
+
+    <!-- ===== BOTTOM NAVIGATION (Mobile) ===== -->
+    <nav class="bottom-nav">
+        <a href="#" class="nav-item active">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Home</span>
+        </a>
+        <a href="history.html" class="nav-item">
+            <span class="nav-icon">📜</span>
+            <span class="nav-label">History</span>
+        </a>
+        <a href="#" class="nav-item" onclick="toggleProfileModal()">
+            <span class="nav-icon">👤</span>
+            <span class="nav-label">Profile</span>
+        </a>
+        <a href="#" class="nav-item" onclick="DriverApp.logout()">
+            <span class="nav-icon">🚪</span>
+            <span class="nav-label">Logout</span>
+        </a>
+    </nav>
 
     <!-- ===== IMMEDIATE UPI SETUP PROMPT MODAL ===== -->
     <div id="upi-prompt-modal" class="modal hidden" style="z-index: 10100;">
