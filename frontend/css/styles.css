@@ -41,7 +41,7 @@ html {
 
 body {
     font-family: var(--font);
-    background: var(--bg-primary);
+    background: linear-gradient(rgba(244, 247, 246, 0.3), rgba(244, 247, 246, 0.7)), url('../img/splash_bg.png') center/cover no-repeat fixed;
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
@@ -605,8 +605,7 @@ select.input-field option {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    /* Lowered gradient opacity so IIT background is clearly visible */
-    background: linear-gradient(rgba(244, 247, 246, 0.2), rgba(244, 247, 246, 0.4)), url('../img/splash_bg.png') center/cover no-repeat;
+    background: transparent;
 }
 .auth-card {
     width: 100%;
@@ -948,8 +947,7 @@ select.input-field option {
 .splash-screen {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    /* Lowered gradient opacity for Splash screen as well */
-    background: linear-gradient(rgba(244, 247, 246, 0.1), rgba(244, 247, 246, 0.4)), url('../img/splash_bg.png') center/cover no-repeat;
+    background: transparent;
     display: flex;
     flex-direction: column;
     align-items: center;
