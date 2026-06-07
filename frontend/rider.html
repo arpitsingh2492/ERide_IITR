@@ -28,29 +28,12 @@
             </div>
         </div>
         <div class="header-actions">
-            <!-- Mobile UI: Actions moved to bottom navigation -->
+            <button class="history-btn" onclick="toggleProfileModal()">👤 Profile</button>
+            <button class="history-btn" onclick="window.location.href='history.html'">History</button>
+            <span class="user-name" id="user-name"></span>
+            <button class="btn-logout" onclick="RiderApp.logout()">Logout</button>
         </div>
     </header>
-
-    <!-- ===== TOP NAVIGATION (Mobile) ===== -->
-    <nav class="top-nav">
-        <a href="#" class="nav-item active">
-            <span class="nav-icon">🏠</span>
-            <span class="nav-label">Home</span>
-        </a>
-        <a href="history.html" class="nav-item">
-            <span class="nav-icon">📜</span>
-            <span class="nav-label">History</span>
-        </a>
-        <a href="#" class="nav-item" onclick="toggleProfileModal()">
-            <span class="nav-icon">👤</span>
-            <span class="nav-label">Profile</span>
-        </a>
-        <a href="#" class="nav-item" onclick="RiderApp.logout()">
-            <span class="nav-icon">🚪</span>
-            <span class="nav-label">Logout</span>
-        </a>
-    </nav>
 
     <!-- Main Content -->
     <div class="page-content">
@@ -216,8 +199,6 @@
             </div>
         </div>
     </div>
-
-
 
     <!-- ===== PROFILE EDIT MODAL ===== -->
     <div id="profile-modal" class="modal hidden">
