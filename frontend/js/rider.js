@@ -63,13 +63,26 @@ const RiderApp = {
     /* ---- Map ---- */
     initMap() {
         this.mapInstance = CampusMap.init('rider-map');
+
+        // Allow user to set custom pickup location by clicking the map
+        CampusMap.map.on('click', (e) => {
+            if (this.state === 'idle') {
+                this.setLocation(e.latlng.lat, e.latlng.lng);
+                this.findNearestLocation(e.latlng.lat, e.latlng.lng);
+                
+                // Redraw route if destination is already selected
+                if (this.selectedDest) {
+                    CampusMap.drawRoute(e.latlng.lat, e.latlng.lng, this.selectedDest.lat, this.selectedDest.lng);
+                }
+            }
+        });
     },
 
     /* ---- Geolocation ---- */
     getLocation() {
         if (!navigator.geolocation) {
             this.setLocation(CAMPUS_CENTER[0], CAMPUS_CENTER[1]);
-            document.getElementById('location-text').textContent = 'IIT Roorkee Campus';
+            document.getElementById('location-text').textContent = 'Drag pin to set location';
             return;
         }
 
@@ -81,8 +94,8 @@ const RiderApp = {
             (err) => {
                 console.warn('Geolocation error:', err);
                 this.setLocation(CAMPUS_CENTER[0], CAMPUS_CENTER[1]);
-                document.getElementById('location-text').textContent = 'IIT Roorkee Campus';
-                App.showToast('Using default campus location', 'info');
+                document.getElementById('location-text').textContent = 'Drag pin to set location';
+                App.showToast('Drag the blue pin or click the map to set your location', 'info');
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
         );
@@ -93,10 +106,23 @@ const RiderApp = {
         this.currentLng = lng;
 
         if (this.mapInstance) {
-            CampusMap.addMarker('rider', lat, lng, {
+            const marker = CampusMap.addMarker('rider', lat, lng, {
                 color: 'blue',
-                popup: 'Your Location',
+                popup: 'Your Location (Drag to move)',
+                draggable: true
             });
+            
+            marker.off('dragend');
+            marker.on('dragend', (e) => {
+                const pos = e.target.getLatLng();
+                this.currentLat = pos.lat;
+                this.currentLng = pos.lng;
+                this.findNearestLocation(pos.lat, pos.lng);
+                if (this.selectedDest) {
+                    CampusMap.drawRoute(pos.lat, pos.lng, this.selectedDest.lat, this.selectedDest.lng);
+                }
+            });
+
             CampusMap.map.setView([lat, lng], 16);
         }
     },
