@@ -108,7 +108,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
         return
 
     logger.info(
-        "WebSocket connection: user_id=%d, role=%s",
+        "WebSocket connection: user_id=%s, role=%s",
         user["id"],
         user["role"],
     )

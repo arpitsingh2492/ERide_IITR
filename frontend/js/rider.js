@@ -608,7 +608,11 @@ const RiderApp = {
 
         const phoneEl = document.getElementById('driver-phone');
         const phone = data.driver_phone || '';
-        phoneEl.textContent = App.formatPhone(phone);
+        try {
+            phoneEl.textContent = App.formatPhone(phone);
+        } catch (e) {
+            phoneEl.textContent = phone;
+        }
         phoneEl.href = `tel:${phone}`;
 
         // Reset badge/label defaults
@@ -633,9 +637,9 @@ const RiderApp = {
     },
 
     onRideStarted(data) {
-        this.state = 'confirmed';
+        this.setState('confirmed');
         
-        // Update badge and sublabels
+        App.playSound('started');
         const badge = document.getElementById('ride-status-badge');
         if (badge) {
             badge.textContent = 'In Progress';

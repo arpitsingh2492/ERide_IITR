@@ -203,11 +203,12 @@ const App = {
     /* ---- Helpers ---- */
     formatPhone(phone) {
         if (!phone) return '';
-        const cleaned = phone.replace(/\D/g, '');
+        const phoneStr = String(phone);
+        const cleaned = phoneStr.replace(/\D/g, '');
         if (cleaned.length === 10) {
             return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
         }
-        return phone;
+        return phoneStr;
     },
 
     /* ---- Sound Notifications ---- */

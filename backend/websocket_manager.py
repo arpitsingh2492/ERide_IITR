@@ -64,26 +64,26 @@ class ConnectionManager:
     async def connect_rider(self, user_id: str, ws: WebSocket) -> None:
         """Register a rider's WebSocket connection."""
         self.rider_connections[user_id] = ws
-        logger.info("Rider %d connected (%d riders online)", user_id, len(self.rider_connections))
+        logger.info("Rider %s connected (%d riders online)", user_id, len(self.rider_connections))
         # Immediately send active drivers
         await self.send_driver_locations_to_rider(user_id)
 
     def disconnect_rider(self, user_id: str) -> None:
         """Remove a rider's WebSocket connection."""
         self.rider_connections.pop(user_id, None)
-        logger.info("Rider %d disconnected", user_id)
+        logger.info("Rider %s disconnected", user_id)
 
     async def connect_driver(self, user_id: str, ws: WebSocket) -> None:
         """Register a driver's WebSocket connection."""
         self.driver_connections[user_id] = ws
-        logger.info("Driver %d connected (%d drivers online)", user_id, len(self.driver_connections))
+        logger.info("Driver %s connected (%d drivers online)", user_id, len(self.driver_connections))
         await self.broadcast_driver_locations()
 
     async def disconnect_driver(self, user_id: str) -> None:
         """Remove a driver's WebSocket and location data."""
         self.driver_connections.pop(user_id, None)
         self.driver_locations.pop(user_id, None)
-        logger.info("Driver %d disconnected", user_id)
+        logger.info("Driver %s disconnected", user_id)
         await self.broadcast_driver_locations()
 
     # ── Messaging primitives ─────────────────────────────────────────────
@@ -514,9 +514,9 @@ async def handle_websocket(websocket: WebSocket, user_id: str, role: str) -> Non
                     )
 
     except WebSocketDisconnect:
-        logger.info("WebSocket disconnected: user_id=%d role=%s", user_id, role)
+        logger.info("WebSocket disconnected: user_id=%s role=%s", user_id, role)
     except Exception as exc:
-        logger.exception("WebSocket error for user_id=%d: %s", user_id, exc)
+        logger.exception("WebSocket error for user_id=%s: %s", user_id, exc)
     finally:
         if role == "rider":
             manager.disconnect_rider(user_id)
