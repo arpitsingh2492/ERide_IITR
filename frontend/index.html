@@ -112,7 +112,7 @@
 
         // Redirect if already logged in
         if (App.isLoggedIn() && App.user) {
-            window.location.href = App.user.role === 'rider' ? 'rider.html' : 'driver.html';
+            window.location.href = 'home.html';
         }
 
         let selectedRole = 'rider';
@@ -170,7 +170,7 @@
                 App.showToast('Welcome back! 🎉', 'success');
 
                 setTimeout(() => {
-                    window.location.href = data.user.role === 'rider' ? 'rider.html' : 'driver.html';
+                    window.location.href = 'home.html';
                 }, 500);
             } catch (err) {
                 App.showToast(err.message, 'error');
@@ -220,7 +220,7 @@
                 App.showToast('Account created! 🎉', 'success');
 
                 setTimeout(() => {
-                    window.location.href = data.user.role === 'rider' ? 'rider.html' : 'driver.html';
+                    window.location.href = 'home.html';
                 }, 500);
             } catch (err) {
                 App.showToast(err.message, 'error');

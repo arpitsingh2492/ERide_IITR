@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ERide — Home Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛺</text></svg>">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a1a">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Background Shapes -->
+    <div class="bg-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="app-logo">
+            <span class="logo-icon">🛺</span>
+            <div>
+                <span class="logo-text">ERide</span>
+                <span class="logo-sub">IIT Roorkee</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-logout" onclick="App.logout()">Logout</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="page-content" style="padding-top: 40px;">
+        <!-- Welcome Banner -->
+        <div class="glass-card mb-4 text-center">
+            <h2 style="color: var(--accent); margin-bottom: 8px;">Hello, <span id="home-user-name">User</span>! 👋</h2>
+            <p style="color: var(--text-secondary); font-size: 0.95rem;">Where would you like to go today?</p>
+        </div>
+
+        <!-- Central Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Rider Button -->
+            <a href="rider.html" class="glass-card dashboard-card">
+                <div class="card-icon">🛺</div>
+                <h3>Book a Ride</h3>
+                <p>Find an E-Rickshaw on campus</p>
+            </a>
+
+            <!-- Driver Button (Hidden for Riders by JS) -->
+            <a href="driver.html" class="glass-card dashboard-card" id="driver-portal-card" style="display: none;">
+                <div class="card-icon">🚘</div>
+                <h3>Driver Dashboard</h3>
+                <p>Accept rides and view stats</p>
+            </a>
+
+            <!-- History Button -->
+            <a href="history.html" class="glass-card dashboard-card">
+                <div class="card-icon">📜</div>
+                <h3>Ride History</h3>
+                <p>View your past journeys</p>
+            </a>
+
+            <!-- Profile Button -->
+            <div class="glass-card dashboard-card" onclick="toggleProfileModal()" style="cursor: pointer;">
+                <div class="card-icon">👤</div>
+                <h3>My Profile</h3>
+                <p>Edit your details & settings</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== PROFILE EDIT MODAL ===== -->
+    <div id="profile-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>👤 Edit Profile</h2>
+                <button class="close-btn" onclick="toggleProfileModal()">✕</button>
+            </div>
+            <form id="profile-form" onsubmit="handleProfileUpdate(event)">
+                <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" class="input-field" id="profile-name" required>
+                </div>
+                <div class="input-group">
+                    <label>Phone Number</label>
+                    <input type="tel" class="input-field" id="profile-phone" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="profile-save-btn">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        // Require auth
+        if (!App.isLoggedIn() || !App.user) {
+            window.location.href = 'index.html';
+        } else {
+            // Populate data
+            document.getElementById('home-user-name').innerText = App.user.name;
+            // Only show driver portal if they are a driver
+            if (App.user.role === 'driver') {
+                document.getElementById('driver-portal-card').style.display = 'flex';
+            }
+        }
+
+        // Profile Modal controllers
+        function toggleProfileModal() {
+            const modal = document.getElementById('profile-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('profile-name').value = App.user.name;
+                document.getElementById('profile-phone').value = App.user.phone;
+            }
+        }
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            const btn = document.getElementById('profile-save-btn');
+            const name = document.getElementById('profile-name').value;
+            const phone = document.getElementById('profile-phone').value;
+
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+            
+            try {
+                const data = await App.api('/api/profile', {
+                    method: 'PUT',
+                    body: { name, phone }
+                });
+                App.setAuth(App.token, data.user);
+                document.getElementById('home-user-name').innerText = data.user.name;
+                App.showToast('Profile updated!', 'success');
+                toggleProfileModal();
+            } catch (err) {
+                App.showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Save Changes';
+            }
+        }
+    </script>
+</body>
+</html>

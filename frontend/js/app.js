@@ -43,7 +43,7 @@ const App = {
             return false;
         }
         if (role && this.user && this.user.role !== role) {
-            window.location.href = this.user.role === 'rider' ? 'rider.html' : 'driver.html';
+            window.location.href = 'home.html';
             return false;
         }
         return true;
