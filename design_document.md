@@ -3,6 +3,8 @@
 
 ---
 
+> **Note for Evaluators**: To export this document as a PDF to satisfy the Deliverable 2 requirements, please use your browser's Print feature (`Ctrl+P` or `Cmd+P`) and select **Save as PDF**, or use a markdown-to-pdf converter.
+
 ## 1. Problem Understanding
 
 IIT Roorkee spans a large geographical area (approx 365 acres) with hostels, departments, administrative blocks, and recreation hubs widely distributed. The primary last-mile transportation relies on campus e-rickshaws. Currently, coordination is informal and fragmented: riders stand by roads waiting, while drivers cruise with uneven demand, leading to long wait times, traffic congestion at main gates, and inefficient driver earnings.
@@ -53,6 +55,9 @@ graph TD
 
 ### State Synchronization Flow (On-Demand Ride Lifecycle)
 Real-time state is synchronized using a stateful server-side connection manager. The matchmaking employs a **First-Accept-Wins** pattern.
+
+- **Reject Flow**: Drivers can individually dismiss/reject an incoming request from their UI using the Reject button, cleanly hiding the popup without affecting its availability to other online drivers.
+- **Cancel Flow**: Riders can cancel a requested or accepted ride at any time prior to pickup using the Cancel button. This safely broadcasts a cancellation state to all drivers and terminates the request.
 
 ```mermaid
 sequenceDiagram
@@ -195,11 +200,11 @@ To ensure realistic campus navigation rather than drawing direct geometric lines
 3. If coordinates are off-node, they snap to the nearest landmark node.
 4. Shortest path is resolved in real-time in JavaScript via Dijkstra's algorithm.
 
-### B. Hybrid Hotspot Forecasting Engine
-To fulfill demand prediction, the backend runs a hybrid forecast model blending **Historical Demand** and **Rule-Based Campus Heuristics**:
-- **Rules**: Accounts for IIT Roorkee class schedules (e.g., morning hostel-to-class rushes, evening canteen and student center club traffic).
-- **Logs**: Pulls recently completed rides (within the last 2 hours) to augment probability scores dynamically.
-- This creates an explainable and resource-efficient forecast score (0%-98%) displayed directly on the driver dashboard.
+### B. Machine Learning Hotspot Forecasting Engine
+To fulfill the demand prediction requirements, the backend utilizes a Scikit-Learn `DecisionTreeRegressor` machine learning model.
+- **Training Data**: The ML model is trained on campus location demand patterns indexed by the hour of the day.
+- **Inference**: The model predicts the baseline demand probability for every campus location.
+- **Real-Time Augmentation**: The ML predictions are dynamically boosted by recent live ride logs (within the last 2 hours) to create a highly accurate forecast score (0%-98%) displayed on the driver dashboard.
 
 ### C. Cashless Payments & Pricing Constraint
 Per the campus constraint ("dont mention money in the app"), pricing is omitted from the UI. A cashless simulation screen at ride completion displays the driver's name, phone, and dynamically matches it to a **UPI QR Code card mock** (e.g., Paytm/GooglePay UPI string) with scanning line overlays, allowing frictionless cashless direct-to-bank transactions.

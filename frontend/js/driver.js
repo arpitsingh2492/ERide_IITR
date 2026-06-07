@@ -473,9 +473,14 @@ const DriverApp = {
                     <span class="meta-label">MIN ETA</span>
                 </div>
             </div>
-            <button class="btn btn-primary btn-lg btn-block" onclick="DriverApp.acceptRide('${rideId}')">
-                ⚡ Accept Ride
-            </button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-outline btn-lg" style="flex: 1; border-color: rgba(255, 255, 255, 0.2); color: var(--text-secondary);" onclick="DriverApp.rejectRide('${rideId}')">
+                    ✕ Reject
+                </button>
+                <button class="btn btn-primary btn-lg" style="flex: 2;" onclick="DriverApp.acceptRide('${rideId}')">
+                    ⚡ Accept
+                </button>
+            </div>
         `;
 
         container.appendChild(card);
@@ -517,6 +522,11 @@ const DriverApp = {
         Object.keys(this.pendingRequests).forEach(rideId => {
             this.removeRideRequestCard(rideId);
         });
+    },
+
+    /* ---- Reject Ride ---- */
+    rejectRide(rideId) {
+        this.removeRideRequestCard(rideId);
     },
 
     /* ---- Accept Ride ---- */
