@@ -18,25 +18,18 @@
     </div>
 
     <!-- Header -->
-    <header class="app-header">
-        <div class="app-logo">
-            <span class="logo-icon">🛺</span>
-            <div>
-                <span class="logo-text">ERide</span>
-                <span class="logo-sub">IIT Roorkee</span>
-            </div>
-        </div>
+    <header class="app-header" style="justify-content: flex-end; background: transparent; box-shadow: none;">
         <div class="header-actions">
             <button class="btn-logout" onclick="App.logout()">Logout</button>
         </div>
     </header>
 
     <!-- Main Content -->
-    <div class="page-content" style="padding-top: 40px;">
+    <div class="page-content" style="padding-top: 10px;">
         <!-- Welcome Banner -->
-        <div class="glass-card mb-4 text-center">
-            <h2 style="color: var(--accent); margin-bottom: 8px;">Hello, <span id="home-user-name">User</span>! 👋</h2>
-            <p style="color: var(--text-secondary); font-size: 0.95rem;">Where would you like to go today?</p>
+        <div class="mb-4 text-center">
+            <h2 style="color: var(--text-primary); font-size: 1.5rem; margin-bottom: 4px;">Welcome to ERide, <span id="home-user-name">User</span>!</h2>
+            <p id="current-date-time" style="color: var(--primary-blue); font-size: 0.95rem; font-weight: 600; margin-bottom: 16px;"></p>
         </div>
 
         <!-- Central Dashboard Grid -->
@@ -104,6 +97,15 @@
 
     <script src="js/app.js"></script>
     <script>
+        // Dynamic Date and Time
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'long', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById('current-date-time').innerText = now.toLocaleDateString('en-US', options);
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
         // Require auth
         if (!App.isLoggedIn() || !App.user) {
             window.location.href = 'index.html';
