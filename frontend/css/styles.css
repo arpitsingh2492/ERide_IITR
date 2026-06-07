@@ -41,7 +41,12 @@ html {
 
 body {
     font-family: var(--font);
-    background: linear-gradient(rgba(244, 247, 246, 0.3), rgba(244, 247, 246, 0.7)), url('../img/splash_bg.png') top center/cover no-repeat fixed;
+    background: linear-gradient(rgba(244, 247, 246, 0.2), rgba(244, 247, 246, 0.6)), url('../img/splash_bg.png');
+    background-position: top center;
+    background-size: 100% auto;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-color: var(--bg-primary);
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
@@ -269,22 +274,21 @@ select.input-field option {
     box-shadow: 0 4px 12px rgba(239,35,60,0.1);
 }
 
-/* ===== Bottom Navigation (Mobile) ===== */
-.bottom-nav {
-    position: fixed;
-    bottom: 0;
+/* ===== Top Navigation (Mobile) ===== */
+.top-nav {
+    position: sticky;
+    top: 65px; /* Adjust to sit directly below the app header */
     left: 0;
     right: 0;
-    height: 72px;
-    background: rgba(255, 255, 255, 0.9);
+    height: 64px;
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(226, 232, 240, 0.8);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    z-index: 9999;
-    padding-bottom: env(safe-area-inset-bottom);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+    z-index: 999;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
 }
 .nav-item {
     display: flex;
@@ -636,7 +640,7 @@ select.input-field option {
 
 /* ===== Page Layouts ===== */
 .page-content {
-    padding: 24px 24px 100px 24px;
+    padding: 24px;
     max-width: 640px;
     margin: 0 auto;
     position: relative;
