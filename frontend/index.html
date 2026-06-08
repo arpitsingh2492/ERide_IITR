@@ -75,10 +75,6 @@
                         <label>Vehicle Number (for Drivers)</label>
                         <input type="text" class="input-field" id="reg-vehicle" placeholder="e.g. UK08 ER 1234">
                     </div>
-                    <div class="input-group hidden" id="reg-license-group">
-                        <label>Driving License Number (for Drivers)</label>
-                        <input type="text" class="input-field" id="reg-license" placeholder="e.g. DL-1234567890123">
-                    </div>
                     <div class="input-group">
                         <label>I am a</label>
                         <div class="role-selector">
@@ -146,13 +142,10 @@
             document.querySelector(`.role-option[data-role="${role}"]`).classList.add('selected');
             
             const vehicleGroup = document.getElementById('reg-vehicle-group');
-            const licenseGroup = document.getElementById('reg-license-group');
             if (role === 'driver') {
                 vehicleGroup.classList.remove('hidden');
-                licenseGroup.classList.remove('hidden');
             } else {
                 vehicleGroup.classList.add('hidden');
-                licenseGroup.classList.add('hidden');
             }
         }
 
@@ -164,6 +157,10 @@
 
             if (!phone || !password) {
                 App.showToast('Please fill in all fields', 'warning');
+                return;
+            }
+            if (!/^\d{10}$/.test(phone)) {
+                App.showToast('this is not valid entree in correct format', 'error');
                 return;
             }
 
@@ -196,14 +193,17 @@
             const phone = document.getElementById('reg-phone').value.trim();
             const password = document.getElementById('reg-password').value;
             const vehicleNumber = document.getElementById('reg-vehicle').value.trim();
-            const licenseNumber = document.getElementById('reg-license').value.trim();
 
             if (!name || !phone || !password) {
                 App.showToast('Please fill in all fields', 'warning');
                 return;
             }
-            if (selectedRole === 'driver' && (!vehicleNumber || !licenseNumber)) {
-                App.showToast('Please enter vehicle and license details', 'warning');
+            if (!/^\d{10}$/.test(phone)) {
+                App.showToast('this is not valid entree in correct format', 'error');
+                return;
+            }
+            if (selectedRole === 'driver' && !vehicleNumber) {
+                App.showToast('Please enter vehicle details', 'warning');
                 return;
             }
             if (password.length < 4) {
@@ -222,7 +222,7 @@
                         phone, 
                         password, 
                         role: selectedRole,
-                        ...(selectedRole === 'driver' ? { vehicle_number: vehicleNumber, license_number: licenseNumber } : {})
+                        ...(selectedRole === 'driver' ? { vehicle_number: vehicleNumber } : {})
                     },
                 });
 
